@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>EvolutionSmellAI</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #020617;
+      --panel: rgba(15, 23, 42, 0.92);
+      --panel-border: rgba(37, 99, 235, 0.28);
+      --accent: #2563EB;
+      --accent-2: #14B8A6;
+      --text: #e2e8f0;
+      --muted: #94a3b8;
+    }
+    body {
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at top left, rgba(37, 99, 235, 0.22), transparent 30%),
+        radial-gradient(circle at bottom right, rgba(20, 184, 166, 0.18), transparent 35%),
+        linear-gradient(135deg, #020617 0%, #0f172a 45%, #111827 100%);
+      color: var(--text);
+      font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    .hero {
+      padding: 4rem 0 2rem;
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 24px 80px rgba(2, 6, 23, 0.4);
+      border-radius: 1.5rem;
+    }
+    .brand {
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.8rem;
+    }
+    .title {
+      font-size: clamp(2rem, 5vw, 4rem);
+      font-weight: 800;
+      line-height: 1.05;
+    }
+    .subtitle {
+      color: var(--muted);
+      max-width: 60rem;
+    }
+    .form-control, .form-select {
+      background-color: rgba(15, 23, 42, 0.9);
+      color: var(--text);
+      border-color: rgba(148, 163, 184, 0.28);
+    }
+    .form-control:focus {
+      box-shadow: 0 0 0 0.2rem rgba(37, 99, 235, 0.18);
+      border-color: var(--accent);
+    }
+    .btn-accent {
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      border: none;
+      color: #658396;
+      font-weight: 700;
+    }
+    .btn-accent:hover { filter: brightness(1.03); }
+    .table {
+      --bs-table-bg: transparent;
+      --bs-table-color: var(--text);
+      --bs-table-border-color: rgba(27, 37, 53, 0.18);
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.45rem;
+      padding: 0.45rem 0.8rem;
+      border-radius: 999px;
+      background: rgba(41, 86, 80, 0.12);
+      color: #a7f3d0;
+      border: 1px solid rgba(45, 212, 191, 0.2);
+    }
+    .fade-in { animation: fadeIn 0.5s ease both; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body>
+  <main class="container hero">
+    <div class="row justify-content-center">
+      <div class="col-lg-10">
+        <div class="panel p-4 p-md-5 fade-in">
+          <div class="brand mb-2">EvolutionSmellAI</div>
+          <h1 class="title mb-3">Detect, explain, and refactor Java code smells with evolution-aware Git history analysis.</h1>
+          <p class="subtitle mb-4">Retrieval-Augmented Generation and Git commit evidence guide every LLM response for stronger, more contextual recommendations.</p>
+
+          <div class="row g-3 align-items-end mb-4">
+            <div class="col-lg-9">
+              <label class="form-label">GitHub Repository URL</label>
+              <input id="repoUrl" class="form-control form-control-lg" placeholder="https://github.com/apache/kafka" />
+            </div>
+            <div class="col-lg-3 d-grid">
+              <button id="analyzeBtn" class="btn btn-accent btn-lg">
+                <i class="fa-solid fa-sparkles me-2"></i>Analyze
+              </button>
+            </div>
+          </div>
+
+          <div class="progress mb-2" style="height: 10px; background: rgba(148,163,184,0.15);">
+            <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 0%; background: linear-gradient(90deg, var(--accent), var(--accent-2));"></div>
+          </div>
+          <div id="resultSummary" class="text-secondary mb-4">Enter a repository and click Analyze to run the EvolutionSmellAI pipeline.</div>
+
+          <div class="d-flex flex-wrap gap-2 mb-4">
+            <span class="pill"><i class="fa-solid fa-shield-halved"></i>Evolution-Aware Scoring</span>
+            <span class="pill"><i class="fa-solid fa-file-lines"></i>HTML + PDF Reports</span>
+            <span class="pill"><i class="fa-solid fa-database"></i>FAISS-Grounded RAG</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-dark table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>File</th>
+                  <th>Class</th>
+                  <th>Smell</th>
+                  <th>Severity</th>
+                  <th>Confidence</th>
+                  <th>Refactoring Suggestions</th>
+                </tr>
+              </thead>
+              <tbody id="resultsBody">
+                <tr><td colspan="6" class="text-center text-secondary py-4">Run an analysis to see predictions here.</td></tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="d-flex flex-wrap gap-2 mt-4">
+            <a id="jsonDownload" class="btn btn-outline-light disabled" href="#">Download JSON Report</a>
+            <a id="pdfDownload" class="btn btn-outline-warning disabled" href="#">Download PDF Report</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const analyzeBtn = document.getElementById('analyzeBtn');
+    const repoUrl = document.getElementById('repoUrl');
+    const resultsBody = document.getElementById('resultsBody');
+    const progressBar = document.getElementById('progressBar');
+    const jsonDownload = document.getElementById('jsonDownload');
+    const pdfDownload = document.getElementById('pdfDownload');
+
+    function setProgress(value) {
+      progressBar.style.width = `${value}%`;
+      progressBar.textContent = value > 10 ? `${value}%` : '';
+    }
+
+    analyzeBtn.addEventListener('click', async () => {
+      if (!repoUrl.value.trim()) {
+        alert('Enter a GitHub repository URL first.');
+        return;
+      }
+      setProgress(25);
+      analyzeBtn.disabled = true;
+      analyzeBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Analyzing';
+
+      try {
+        const response = await fetch('/api/analyze', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repository_url: repoUrl.value.trim() })
+        });
+        setProgress(70);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || 'Analysis failed');
+        }
+
+        if (!data.findings || data.findings.length === 0) {
+          resultsBody.innerHTML = `<tr><td colspan="6" class="text-center text-secondary py-4">No smell findings were detected in this repository.</td></tr>`;
+        } else {
+          resultsBody.innerHTML = data.findings.map(finding => `
+            <tr>
+              <td>${finding.file_path}</td>
+              <td>${finding.class_name}</td>
+              <td>${finding.smell_type}</td>
+              <td><span class="badge bg-${finding.severity === 'high' ? 'danger' : finding.severity === 'medium' ? 'warning text-dark' : 'success'}">${finding.severity}</span></td>
+              <td>${Number(finding.confidence).toFixed(2)}</td>
+              <td>${finding.refactoring_suggestions.map(item => `<div>${item}</div>`).join('')}</td>
+            </tr>
+          `).join('');
+        }
+
+        document.getElementById('resultSummary').textContent = data.summary || 'Analysis completed.';
+        const analysisId = data.analysis_id;
+        jsonDownload.href = `/api/reports/${analysisId}/json`;
+        pdfDownload.href = `/api/reports/${analysisId}/pdf`;
+        jsonDownload.classList.remove('disabled');
+        pdfDownload.classList.remove('disabled');
+        setProgress(100);
+      } catch (error) {
+        alert(error.message);
+        setProgress(0);
+      } finally {
+        analyzeBtn.disabled = false;
+        analyzeBtn.innerHTML = '<i class="fa-solid fa-sparkles me-2"></i>Analyze';
+      }
+    });
+  </script>
+</body>
+</html>
