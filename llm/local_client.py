@@ -32,6 +32,19 @@ class LocalLLMService(BaseLLMService):
             explanation=explanation,
             refactoring_suggestions=suggestions,
             severity=request.severity,
-            confidence=0.72,
+            confidence=self._confidence_from_request(request),
             provider="local",
         )
+
+    def _confidence_from_request(self, request: LLMRequest) -> float:
+        """Compute a basic confidence for local responses based on severity and metrics."""
+        base = 0.5
+        sev_map = {"low": 0.0, "medium": 0.15, "high": 0.25}
+        sev_boost = sev_map.get((request.severity or "").lower(), 0.0)
+        complexity = 0.0
+        if request.metrics and isinstance(request.metrics, dict):
+            complexity = float(request.metrics.get("complexity_score", 0))
+        # small influence from complexity (scaled)
+        complexity_boost = min(0.15, complexity / 200.0)
+        conf = base + sev_boost + complexity_boost
+        return round(min(0.99, conf), 2)

@@ -40,6 +40,7 @@ class Settings(BaseSettings):
     max_files_to_analyze: int = 200
     max_findings_per_file: int = 10
     max_findings_per_repository: int = 50
+    max_history_commits_per_file: int = 10
 
     openai_api_key: str | None = None
     openai_base_url: str | None = None

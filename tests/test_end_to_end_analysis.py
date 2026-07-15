@@ -73,6 +73,7 @@ public class Sample {
     assert result.findings
     assert result.findings[0].metrics.get("history_context") is not None
     assert result.findings[0].metrics["history_context"].get("commit_metadata") is not None
+    assert result.findings[0].metrics["history_context"]["commit_metadata"].get("total_commits") == 1
     assert result.json_report_path is not None
     assert result.pdf_report_path is not None
     assert Path(result.json_report_path).exists()

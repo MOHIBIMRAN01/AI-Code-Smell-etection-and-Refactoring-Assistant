@@ -39,6 +39,13 @@ def _soft_wrap(text: str | None, for_pdf: bool = False) -> str:
     return s
 
 
+def _truncate(text: str, max_chars: int = 300, suffix: str = "…") -> str:
+    """Truncate *text* to *max_chars* characters, appending *suffix* if cut."""
+    if len(text) <= max_chars:
+        return text
+    return text[:max_chars].rstrip() + suffix
+
+
 class ReportGenerator:
     """Persist the analysis output as JSON, HTML, and PDF."""
 
@@ -136,8 +143,8 @@ class ReportGenerator:
                 except ValueError:
                     continue
 
-        contributors = sorted({contributor for block in history_blocks for contributor in block.get("contributors", []) if contributor})
-        messages = [message for block in history_blocks for message in block.get("recent_commit_messages", []) if message]
+        contributors = sorted({contributor[:80] for block in history_blocks for contributor in block.get("contributors", []) if contributor})
+        messages = [str(message)[:120] for block in history_blocks for message in block.get("recent_commit_messages", []) if message]
 
         return {
             "total_commits": total_commits,
@@ -175,25 +182,29 @@ class ReportGenerator:
         story = [Paragraph("EvolutionSmellAI Report", title_style), Spacer(1, 8)]
         story.append(Paragraph(f"Repository: {result.repository_name}", body_style))
         story.append(Paragraph(f"Repository URL: {result.repository_url}", body_style))
-        story.append(Paragraph(f"Summary: {result.summary}", body_style))
+        story.append(Paragraph(f"Summary: {_truncate(result.summary, max_chars=600)}", body_style))
         story.append(Spacer(1, 8))
 
         history_summary = self._extract_commit_history_summary(result)
         story.append(Paragraph("Commit History Analysis", heading_style))
+        story.append(Paragraph(f"Total commits: {history_summary['total_commits']}", body_style))
+        story.append(Paragraph(f"Commit frequency: {history_summary['commit_frequency']:.2f}/day", body_style))
+        story.append(Spacer(1, 4))
         cell_style = ParagraphStyle(name="TableCell", parent=body_style, fontSize=8, leading=10, wordWrap="CJK")
         header_cell_style = ParagraphStyle(name="TableHeaderCell", parent=body_style, fontSize=8, leading=10, wordWrap="CJK")
         history_rows = [
-            [Paragraph(html.escape("Total commits"), header_cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["total_commits"]), for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Commit frequency"), header_cell_style), Paragraph(html.escape(_soft_wrap(f"{history_summary['commit_frequency']:.2f}/day", for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Last modified"), header_cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["last_modified"]), for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Code churn"), header_cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["code_churn"]), for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Lines added"), header_cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["lines_added"]), for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Lines deleted"), header_cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["lines_deleted"]), for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Top contributors"), header_cell_style), Paragraph(html.escape(_soft_wrap(", ".join(history_summary["top_contributors"]) or "Not available", for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Recent commit messages"), header_cell_style), Paragraph(html.escape(_soft_wrap("; ".join(history_summary["recent_commit_messages"]) or "Not available", for_pdf=True)), cell_style)],
-            [Paragraph(html.escape("Hotspot score"), header_cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["hotspot_score"]), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Metric"), header_cell_style), Paragraph(html.escape("Value"), header_cell_style)],
+            [Paragraph(html.escape("Total commits"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["total_commits"]), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Commit frequency"), cell_style), Paragraph(html.escape(_soft_wrap(f"{history_summary['commit_frequency']:.2f}/day", for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Last modified"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["last_modified"]), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Code churn"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["code_churn"]), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Lines added"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["lines_added"]), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Lines deleted"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["lines_deleted"]), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Top contributors"), cell_style), Paragraph(html.escape(_soft_wrap(_truncate(", ".join(history_summary["top_contributors"]) or "Not available", max_chars=200), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Recent commit messages"), cell_style), Paragraph(html.escape(_soft_wrap(_truncate("; ".join(history_summary["recent_commit_messages"]) or "Not available", max_chars=400), for_pdf=True)), cell_style)],
+            [Paragraph(html.escape("Hotspot score"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["hotspot_score"]), for_pdf=True)), cell_style)],
         ]
-        history_table = Table(history_rows, repeatRows=1, colWidths=[45 * mm, 110 * mm])
+        history_table = Table(history_rows, repeatRows=1, colWidths=[45 * mm, 110 * mm], splitByRow=1)
         history_table.setStyle(
             TableStyle(
                 [
@@ -203,8 +214,8 @@ class ReportGenerator:
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("WORDWRAP", (0, 0), (-1, -1), "CJK"),
                     ("FONTSIZE", (0, 0), (-1, -1), 8),
-                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#f8fafc")),
-                    ("BACKGROUND", (1, 1), (-1, -1), colors.HexColor("#f8fafc")),
+                    ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8fafc")),
+                    ("TEXTCOLOR", (0, 1), (-1, -1), colors.HexColor("#0f172a")),
                 ]
             )
         )
@@ -231,6 +242,7 @@ class ReportGenerator:
             data,
             repeatRows=1,
             colWidths=[70 * mm, 30 * mm, 30 * mm, 20 * mm, 20 * mm],
+            splitByRow=1,
         )
         table.setStyle(
             TableStyle(

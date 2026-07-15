@@ -130,12 +130,8 @@ class PredictionEngine:
         return sorted(repository_path.rglob("*.java"))
 
     def _select_smells(self, class_metrics) -> list[SmellCandidate]:
-        smell_candidates = []
-        if class_metrics.smell_candidates:
-            smell_candidates = [
-                SmellCandidate(smell_type=name, severity="medium", confidence=0.7, rationale="Detected by heuristic metrics.")
-                for name in class_metrics.smell_candidates
-            ]
+        # Prefer detailed candidates computed by the MetricsExtractor
+        smell_candidates = self.metrics_extractor.get_smell_candidates(class_metrics)
 
         if not smell_candidates:
             smell_candidates = [
@@ -218,7 +214,10 @@ class PredictionEngine:
 
     def _analyze_commit_history(self, repository_path: Path, relative_file_path: str) -> list:
         try:
-            analyzer = CommitAnalyzer(repository_path=repository_path, max_commits=30)
+            analyzer = CommitAnalyzer(
+                repository_path=repository_path,
+                max_commits=self.settings.max_history_commits_per_file,
+            )
             return analyzer.get_commits_for_file(relative_file_path)
         except Exception as exc:
             LOGGER.debug("Git history analysis was skipped for %s: %s", relative_file_path, exc)

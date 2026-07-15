@@ -34,6 +34,7 @@ class CommitAnalyzer:
     def __init__(self, repository_path: str | Path, max_commits: int | None = None) -> None:
         self.repository_path = Path(repository_path).resolve()
         self.max_commits = max_commits
+        self._repo: Repo | None = None
 
     def analyze_repository(self, target_file: str | None = None) -> list[CommitInfo]:
         """Analyze the repository history, optionally filtering to a specific Java file."""
@@ -67,11 +68,15 @@ class CommitAnalyzer:
         return self.analyze_repository(target_file=java_file)
 
     def _load_repository(self) -> Repo:
+        if self._repo is not None:
+            return self._repo
+
         if not self.repository_path.exists():
             raise ValueError(f"Repository path does not exist: {self.repository_path}")
 
         try:
-            return Repo(self.repository_path)
+            self._repo = Repo(self.repository_path)
+            return self._repo
         except InvalidGitRepositoryError as exc:
             raise ValueError(f"{self.repository_path} is not a valid Git repository") from exc
 
@@ -96,7 +101,7 @@ class CommitAnalyzer:
 
     def _build_commit_info(self, repo: Repo, commit: Any) -> CommitInfo:
         modified_files = self._collect_modified_files(commit)
-        diff = self._collect_diff(repo, commit)
+        diff = ""
         stats = getattr(commit, "stats", None)
         insertions = 0
         deletions = 0
