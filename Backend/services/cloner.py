@@ -13,7 +13,15 @@ import time
 from pathlib import Path
 from urllib.parse import urlparse
 
-from git import InvalidGitRepositoryError, Repo
+try:
+    from git import InvalidGitRepositoryError, Repo
+except ImportError as exc:
+    LOGGER = logging.getLogger(__name__)
+    LOGGER.error(
+        "GitPython is not available or git executable not found in PATH. "
+        "Repository cloning will not work: %s", exc
+    )
+    raise
 
 from utils.errors import CloneError
 
