@@ -1,0 +1,10 @@
+app:
+  name: LLM-Based Intelligent Code Smell Detection and Refactoring Recommendation System
+  api_prefix: /api
+analysis:
+  default_retrieval_k: 5
+  max_files_to_analyze: 500
+  max_findings_per_file: 10
+llm:
+  provider: openai
+  model_name: gpt-4o-mini
