@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     api_prefix: str = "/api"
     backend_host: str = "0.0.0.0"
     backend_port: int = 8000
+    frontend_url: str = "http://localhost:3000"
 
     data_dir: Path = Field(default=BASE_DIR / "data")
     logs_dir: Path = Field(default=BASE_DIR / "logs")
