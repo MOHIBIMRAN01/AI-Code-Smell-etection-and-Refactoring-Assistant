@@ -30,9 +30,23 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
 
     # Add CORS middleware to support frontend API connections
+    # Only allow the specific frontend URL from environment variable
+    allowed_origins = []
+    
+    # Always add localhost for local development
+    if settings.environment == "development":
+        allowed_origins.extend([
+            "http://localhost:3000",
+            "http://127.0.0.1:3000",
+        ])
+    
+    # Add the configured frontend URL (FRONTEND_URL env var)
+    if settings.frontend_url:
+        allowed_origins.append(settings.frontend_url)
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=allowed_origins,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
