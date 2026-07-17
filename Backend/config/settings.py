@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     qwen_base_url: str | None = None
     llama_base_url: str | None = None
     allow_network_clone: bool = True
-    request_timeout_seconds: int = 120
+    request_timeout_seconds: int = 600  # Increased from 120 to 600 (10 minutes) for large repos
     repo_clone_ttl_minutes: int = 30
     repo_cleanup_interval_seconds: int = 60
 
