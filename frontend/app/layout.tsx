@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 import { ErrorProvider, AnalysisProvider, ThemeProvider } from '@/context';
 import { ErrorNotification } from '@/components/ErrorNotification';
+import { BackendWakeup } from '@/components/BackendWakeup';
 
 export const metadata: Metadata = {
   title: 'Code Smell Detector - AI-Powered Analysis',
@@ -28,6 +29,7 @@ export default function RootLayout({
           <ErrorProvider>
             <AnalysisProvider>
               <div className="min-h-screen flex flex-col">
+                <BackendWakeup />
                 {children}
                 <ErrorNotification />
               </div>
