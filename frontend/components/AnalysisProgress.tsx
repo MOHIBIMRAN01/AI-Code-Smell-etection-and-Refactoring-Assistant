@@ -1,161 +1,131 @@
 /**
- * Beautiful progress tracker overlay for code smell analysis
+ * Analysis Progress Component
+ * Shows real-time feedback during long-running analysis
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { FiCloudLightning, FiCpu, FiCompass, FiAward, FiLoader } from 'react-icons/fi';
 
 interface AnalysisProgressProps {
   isLoading: boolean;
+  startTime?: number;
 }
 
-export function AnalysisProgress({ isLoading }: AnalysisProgressProps) {
-  const [secondsLeft, setSecondsLeft] = useState(65);
-  const [progress, setProgress] = useState(0);
-  const [activeStep, setActiveStep] = useState(0);
+export function AnalysisProgress({ isLoading, startTime }: AnalysisProgressProps) {
+  const [elapsed, setElapsed] = useState(0);
+  const [estimatedTime, setEstimatedTime] = useState('2-5 minutes');
 
   useEffect(() => {
     if (!isLoading) {
-      // Reset values when not loading
-      setSecondsLeft(65);
-      setProgress(0);
-      setActiveStep(0);
+      setElapsed(0);
       return;
     }
 
-    // Interval to countdown seconds and advance progress bar smoothly
-    const timer = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 3) return 3; // Keep it at 3 seconds minimum until backend finishes
-        return prev - 1;
-      });
+    const interval = setInterval(() => {
+      setElapsed((prev) => prev + 1);
 
-      setProgress((prev) => {
-        if (prev >= 98) return 98; // Hold at 98% until request resolves
-        // Smoothly accelerate/decelerate progression rate
-        const delta = prev < 30 ? 1.5 : prev < 75 ? 1.2 : 0.4;
-        return Number((prev + delta).toFixed(1));
-      });
+      // Update estimated time based on elapsed time
+      if (elapsed > 120) {
+        setEstimatedTime('Large repo - may take 5-10 minutes');
+      } else if (elapsed > 60) {
+        setEstimatedTime('3-5 minutes for large repo');
+      }
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [isLoading]);
-
-  // Determine current active stage based on progress/seconds
-  useEffect(() => {
-    if (progress < 25) {
-      setActiveStep(0); // Cloning
-    } else if (progress < 50) {
-      setActiveStep(1); // Metrics Extraction
-    } else if (progress < 65) {
-      setActiveStep(2); // RAG Database
-    } else if (progress < 90) {
-      setActiveStep(3); // LLM Explanation
-    } else {
-      setActiveStep(4); // Finalizing
-    }
-  }, [progress]);
+    return () => clearInterval(interval);
+  }, [isLoading, elapsed]);
 
   if (!isLoading) return null;
 
-  const steps = [
-    { label: 'Cloning Repository', icon: FiCloudLightning, desc: 'Fetching git history & codebase...' },
-    { label: 'Parsing Source Files', icon: FiCompass, desc: 'Calculating method metrics & smells...' },
-    { label: 'Vector Store Query', icon: FiCpu, desc: 'Matching historical patterns via RAG...' },
-    { label: 'AI Code Analysis', icon: FiAward, desc: 'Generating explaining recommendations...' },
-    { label: 'Finalizing Report', icon: FiLoader, desc: 'Compiling findings and layout...' },
-  ];
+  const minutes = Math.floor(elapsed / 60);
+  const seconds = elapsed % 60;
+  const progress = Math.min((elapsed / 300) * 100, 90); // Assume max 5 minutes normally
 
   return (
-    <div className="mt-8 p-6 rounded-xl border border-gray-100 bg-white/50 dark:border-dark-border dark:bg-dark-card/45 backdrop-blur-md animate-fade-in">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <div>
-          <h3 className="text-lg font-bold text-gray-900 dark:text-cream">
-            Running Analysis Pipeline
-          </h3>
-          <p className="text-sm text-gray-600 dark:text-cream-50 mt-0.5">
-            Our multi-stage pipeline is scanning your Java repository
+    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-2xl p-8 max-w-md">
+        <div className="text-center">
+          {/* Loading Icon */}
+          <div className="flex justify-center mb-6">
+            <div className="w-16 h-16 border-4 border-gray-200 dark:border-slate-700 border-t-blue-600 rounded-full animate-spin" />
+          </div>
+
+          {/* Title */}
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            Analyzing Repository
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            This may take a few minutes for large repositories
           </p>
-        </div>
-        <div className="px-3.5 py-1.5 rounded-lg bg-blue-50 border border-blue-100 dark:bg-coral/10 dark:border-coral/20 flex flex-col items-end">
-          <span className="text-xs font-semibold uppercase tracking-wider text-blue-600 dark:text-coral">
-            Estimated remaining
-          </span>
-          <span className="text-xl font-extrabold text-blue-800 dark:text-coral font-mono leading-none mt-1">
-            ~{secondsLeft}s
-          </span>
-        </div>
-      </div>
 
-      {/* Progress Bar Container */}
-      <div className="relative w-full h-3.5 bg-gray-100 dark:bg-dark rounded-full overflow-hidden mb-8 border border-gray-200/40 dark:border-dark-border/40">
-        <div
-          className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 dark:from-coral dark:to-cream transition-all duration-1000 ease-out rounded-full"
-          style={{ width: `${progress}%` }}
-        />
-        <div
-          className="absolute inset-0 bg-shimmer bg-[length:200%_100%] animate-shimmer opacity-20 pointer-events-none"
-        />
-      </div>
-
-      {/* Step Indicators */}
-      <div className="grid grid-cols-1 gap-4">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          const isCompleted = index < activeStep;
-          const isActive = index === activeStep;
-
-          return (
-            <div
-              key={step.label}
-              className={`flex gap-4 p-3 rounded-lg border transition-all duration-300 ${
-                isActive
-                  ? 'bg-blue-50/70 border-blue-200 dark:bg-coral/10 dark:border-coral/30 shadow-sm'
-                  : isCompleted
-                  ? 'bg-gray-50/50 border-gray-150 dark:bg-dark-card/20 dark:border-dark-border/40 opacity-70'
-                  : 'border-transparent opacity-40'
-              }`}
-            >
+          {/* Progress Bar */}
+          <div className="mb-6">
+            <div className="bg-gray-200 dark:bg-slate-700 rounded-full h-2 overflow-hidden">
               <div
-                className={`flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center border transition-all ${
-                  isActive
-                    ? 'bg-blue-600 border-blue-400 text-white dark:bg-coral dark:border-coral/50'
-                    : isCompleted
-                    ? 'bg-green-100 border-green-200 text-green-600 dark:bg-green-950/40 dark:border-green-900/60 dark:text-green-400'
-                    : 'bg-gray-100 border-gray-200 text-gray-500 dark:bg-dark dark:border-dark-border dark:text-cream-50/50'
-                }`}
-              >
-                {isActive && index === 4 ? (
-                  <Icon className="text-lg animate-spin" />
-                ) : (
-                  <Icon className="text-lg" />
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <h4 className="font-semibold text-sm text-gray-900 dark:text-cream truncate">
-                    {step.label}
-                  </h4>
-                  {isCompleted && (
-                    <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-bold uppercase dark:bg-green-950/60 dark:text-green-400">
-                      Done
-                    </span>
-                  )}
-                  {isActive && (
-                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full font-bold uppercase animate-pulse dark:bg-coral/20 dark:text-coral">
-                      Active
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-gray-500 dark:text-cream-50 mt-0.5 truncate">
-                  {step.desc}
-                </p>
-              </div>
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-full transition-all duration-500"
+                style={{ width: `${progress}%` }}
+              />
             </div>
-          );
-        })}
+          </div>
+
+          {/* Time Display */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
+            <div className="bg-blue-50 dark:bg-blue-950/20 rounded-lg p-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">
+                ELAPSED TIME
+              </p>
+              <p className="text-lg font-bold text-gray-900 dark:text-white mt-1">
+                {minutes}:{seconds.toString().padStart(2, '0')}
+              </p>
+            </div>
+            <div className="bg-amber-50 dark:bg-amber-950/20 rounded-lg p-3">
+              <p className="text-xs text-gray-600 dark:text-gray-400 font-semibold">
+                ESTIMATED
+              </p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white mt-1">
+                {estimatedTime}
+              </p>
+            </div>
+          </div>
+
+          {/* Status Messages */}
+          <div className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
+            <div className="flex items-center gap-2">
+              <span className="text-green-500">✓</span>
+              <span>Cloning repository</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-green-500">✓</span>
+              <span>Parsing Java files</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={elapsed > 30 ? 'text-green-500' : 'text-gray-400'}>
+                {elapsed > 30 ? '✓' : '○'}
+              </span>
+              <span>Extracting metrics</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={elapsed > 60 ? 'text-green-500' : 'text-gray-400'}>
+                {elapsed > 60 ? '✓' : '○'}
+              </span>
+              <span>Analyzing with AI</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className={elapsed > 120 ? 'text-green-500' : 'text-gray-400'}>
+                {elapsed > 120 ? '✓' : '○'}
+              </span>
+              <span>Generating report</span>
+            </div>
+          </div>
+
+          {/* Tip */}
+          <div className="mt-6 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              💡 Tip: Don't close this tab. Large repositories may take up to 10 minutes.
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   );
