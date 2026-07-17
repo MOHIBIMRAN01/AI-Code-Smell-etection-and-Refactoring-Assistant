@@ -36,10 +36,11 @@ class Settings(BaseSettings):
     embedding_provider: str = "local"
     embedding_model: str = "local"
     default_retrieval_k: int = 5
-    max_files_to_analyze: int = 100  # Reduced from 200 to focus on key files (avoids timeout)
+    max_files_to_analyze: int = 70  # Balanced: enough coverage but faster (was 100)
     max_findings_per_file: int = 5  # Reduced from 10 to speed up analysis
     max_findings_per_repository: int = 30  # Reduced from 50 to focus on critical issues
     max_history_commits_per_file: int = 5  # Reduced from 10 to speed up git analysis
+    max_parallel_llm_calls: int = 3  # Run 3 LLM calls in parallel (saves 5-7 min)
 
     openai_api_key: str | None = None
     openai_base_url: str | None = None

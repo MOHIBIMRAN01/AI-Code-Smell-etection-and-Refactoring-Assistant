@@ -6,6 +6,7 @@ import logging
 import shutil
 import stat
 import tempfile
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
@@ -77,6 +78,9 @@ class PredictionEngine:
             analyzed_classes = 0
             max_findings = self.settings.max_findings_per_repository
 
+            # Collect all finding tasks before processing
+            finding_tasks = []
+            
             for file_path in java_files[: self.settings.max_files_to_analyze]:
                 relative_file_path = file_path.relative_to(repository_path).as_posix()
                 commit_history = self._analyze_commit_history(repository_path, relative_file_path)
@@ -86,21 +90,40 @@ class PredictionEngine:
                     evaluated_class = self.metrics_extractor.evaluate_class(class_metrics)
                     smell_candidates = self._select_smells(evaluated_class)
                     for smell_candidate in smell_candidates:
-                        if len(findings) >= max_findings:
+                        if len(finding_tasks) >= max_findings:
                             break
-                        findings.append(
-                            self._build_finding(
-                                smell_candidate=smell_candidate,
-                                class_metrics=evaluated_class,
-                                parsed_file_path=parsed_file.file_path,
-                                source_code=parsed_file.source_code,
-                                commit_history=commit_history,
-                            )
-                        )
-                    if len(findings) >= max_findings:
+                        finding_tasks.append((
+                            smell_candidate,
+                            evaluated_class,
+                            parsed_file.file_path,
+                            parsed_file.source_code,
+                            commit_history,
+                        ))
+                    if len(finding_tasks) >= max_findings:
                         break
-                if len(findings) >= max_findings:
+                if len(finding_tasks) >= max_findings:
                     break
+
+            # Process findings in parallel with thread pool
+            findings = []
+            with ThreadPoolExecutor(max_workers=self.settings.max_parallel_llm_calls) as executor:
+                futures = {
+                    executor.submit(
+                        self._build_finding,
+                        smell_candidate=task[0],
+                        class_metrics=task[1],
+                        parsed_file_path=task[2],
+                        source_code=task[3],
+                        commit_history=task[4],
+                    ): i for i, task in enumerate(finding_tasks)
+                }
+                
+                for future in as_completed(futures):
+                    try:
+                        finding = future.result()
+                        findings.append(finding)
+                    except Exception as exc:
+                        LOGGER.warning("Failed to build finding: %s", exc)
 
             summary = self._build_summary(
                 findings,
