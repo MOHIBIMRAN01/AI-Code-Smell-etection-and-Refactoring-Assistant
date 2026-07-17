@@ -9,10 +9,9 @@ import { useState, useEffect } from 'react';
 
 interface AnalysisProgressProps {
   isLoading: boolean;
-  startTime?: number;
 }
 
-export function AnalysisProgress({ isLoading, startTime }: AnalysisProgressProps) {
+export function AnalysisProgress({ isLoading }: AnalysisProgressProps) {
   const [elapsed, setElapsed] = useState(0);
   const [estimatedTime, setEstimatedTime] = useState('2-5 minutes');
 
