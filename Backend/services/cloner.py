@@ -104,12 +104,18 @@ class RepositoryCloner:
     """
 
     def clone_into(
-        self, repository_url: str, target_dir: Path, branch: str | None = None
+        self, repository_url: str, target_dir: Path, branch: str | None = None, timeout: int = 900
     ) -> Path:
         """Clone *repository_url* into *target_dir* and return the checkout path.
 
         The repository is placed in a sub-directory named after the repo slug
         inside *target_dir*, e.g. ``target_dir/guava``.
+        
+        Args:
+            repository_url: The Git repository URL to clone
+            target_dir: Target directory where repo will be cloned
+            branch: Optional branch to checkout
+            timeout: Timeout in seconds for clone operation (default: 900s = 15 min)
         """
         repository_name = self._derive_repository_name(repository_url)
         target_path = target_dir / repository_name
@@ -119,13 +125,27 @@ class RepositoryCloner:
             LOGGER.info("Removing incomplete clone at %s", target_path)
             _safe_rmtree(target_path)
 
-        LOGGER.info("Cloning repository %s into %s", repository_url, target_path)
+        LOGGER.info("Cloning repository %s into %s (timeout: %ds)", repository_url, target_path, timeout)
         try:
             clone_kwargs: dict = {}
             if branch:
                 clone_kwargs["branch"] = branch
-            Repo.clone_from(repository_url, target_path, **clone_kwargs)
+            
+            # Use Git with explicit timeout via subprocess
+            import subprocess
+            cmd = ["git", "clone"]
+            if branch:
+                cmd.extend(["--branch", branch])
+            cmd.extend([repository_url, str(target_path)])
+            
+            subprocess.run(cmd, timeout=timeout, check=True, capture_output=True)
             return target_path
+        except subprocess.TimeoutExpired as exc:
+            if target_path.exists():
+                _safe_rmtree(target_path)
+            raise CloneError(
+                f"Clone timeout: Repository {repository_url} took longer than {timeout}s to clone"
+            ) from exc
         except Exception as exc:
             if target_path.exists():
                 _safe_rmtree(target_path)

@@ -31,10 +31,10 @@ class Settings(BaseSettings):
     config_file_path: Path = Field(default=BASE_DIR / "config" / "config.yaml")
     faiss_store_dir: Path = Field(default=BASE_DIR / "data" / "faiss_store")
 
-    model_provider: str = "openai"
-    model_name: str = "gpt-4o-mini"
-    embedding_provider: str = "openai"
-    embedding_model: str = "text-embedding-3-small"
+    model_provider: str = "gemini"
+    model_name: str = "gemini-1.5-flash"
+    embedding_provider: str = "local"
+    embedding_model: str = "local"
     default_retrieval_k: int = 5
     max_files_to_analyze: int = 100  # Reduced from 200 to focus on key files (avoids timeout)
     max_findings_per_file: int = 5  # Reduced from 10 to speed up analysis
