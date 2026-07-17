@@ -66,7 +66,7 @@ class PredictionEngine:
             # Clone into a temporary directory that we own and will always clean up.
             tmp_dir = tempfile.mkdtemp(prefix="codeSmell_")
             repository_path = self.cloner.clone_into(
-                request.repository_url, Path(tmp_dir), branch=request.branch
+                request.repository_url, Path(tmp_dir), branch=request.branch, timeout=self.settings.request_timeout_seconds
             )
             java_files = self._discover_java_files(repository_path)
             if not java_files:
