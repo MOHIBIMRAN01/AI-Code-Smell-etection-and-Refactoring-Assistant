@@ -36,10 +36,10 @@ class Settings(BaseSettings):
     embedding_provider: str = "openai"
     embedding_model: str = "text-embedding-3-small"
     default_retrieval_k: int = 5
-    max_files_to_analyze: int = 200
-    max_findings_per_file: int = 10
-    max_findings_per_repository: int = 50
-    max_history_commits_per_file: int = 10
+    max_files_to_analyze: int = 100  # Reduced from 200 to focus on key files (avoids timeout)
+    max_findings_per_file: int = 5  # Reduced from 10 to speed up analysis
+    max_findings_per_repository: int = 30  # Reduced from 50 to focus on critical issues
+    max_history_commits_per_file: int = 5  # Reduced from 10 to speed up git analysis
 
     openai_api_key: str | None = None
     openai_base_url: str | None = None
@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     qwen_base_url: str | None = None
     llama_base_url: str | None = None
     allow_network_clone: bool = True
-    request_timeout_seconds: int = 600  # Increased from 120 to 600 (10 minutes) for large repos
+    request_timeout_seconds: int = 900  # Increased to 15 minutes for massive repos like Quarkus
     repo_clone_ttl_minutes: int = 30
     repo_cleanup_interval_seconds: int = 60
 
