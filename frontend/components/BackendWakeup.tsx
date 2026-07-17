@@ -44,7 +44,7 @@ export function BackendWakeup() {
         }));
 
         // Send health check request
-        const response = await Promise.race([
+        await Promise.race([
           apiClient.healthCheck(),
           new Promise((_, reject) =>
             setTimeout(() => reject(new Error('Timeout')), 5000)
