@@ -44,6 +44,8 @@ class Settings(BaseSettings):
     openai_api_key: str | None = None
     openai_base_url: str | None = None
     gemini_api_key: str | None = None
+    groq_api_key: str | None = None
+    mistral_api_key: str | None = None
     qwen_base_url: str | None = None
     llama_base_url: str | None = None
     allow_network_clone: bool = True
