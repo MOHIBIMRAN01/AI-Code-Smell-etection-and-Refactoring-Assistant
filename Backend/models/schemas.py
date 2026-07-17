@@ -52,3 +52,21 @@ class ReportLinks(BaseModel):
 
     json_url: str
     pdf_url: str
+
+
+class AsyncJobResponse(BaseModel):
+    """Returned immediately after submitting an async analysis job."""
+
+    job_id: str
+    status: str
+    message: str
+
+
+class JobStatusResponse(BaseModel):
+    """Polling response for an async analysis job."""
+
+    job_id: str
+    status: str                          # pending | running | completed | failed
+    repository_url: str
+    error: str | None = None
+    result: AnalysisResponse | None = None

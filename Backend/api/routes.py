@@ -2,13 +2,19 @@
 
 from __future__ import annotations
 
+import threading
 from datetime import datetime, timedelta
+from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, status, Response, Header
 from sqlalchemy.orm import Session
 
 from api.dependencies import get_prediction_engine, get_app_settings
-from models.schemas import AnalyzeRepositoryRequest, AnalysisResponse, FindingResponse, ReportLinks
+from models.schemas import (
+    AnalyzeRepositoryRequest, AnalysisResponse, FindingResponse, ReportLinks,
+    AsyncJobResponse, JobStatusResponse
+)
 from services.prediction_engine import PredictionEngine
+from services.job_store import get_job_store, JobStatus
 from utils.errors import AnalysisError, AppError
 
 from config.database import get_db
@@ -278,3 +284,99 @@ def download_pdf_report(
         media_type="application/pdf",
         headers={"Content-Disposition": f"attachment; filename=report-{analysis_id}.pdf"}
     )
+
+# ==================== ASYNC ENDPOINTS ====================
+
+@router.post("/analyze/async", response_model=AsyncJobResponse)
+def submit_async_analysis(
+    request: AnalyzeRepositoryRequest,
+    engine: PredictionEngine = Depends(get_prediction_engine),
+    user_id: str = Depends(get_user_id),
+) -> AsyncJobResponse:
+    """Submit analysis job asynchronously. Returns job_id immediately.
+    
+    Bypasses Render's 30s HTTP timeout by returning immediately and running
+    the analysis in a background thread. Use /api/analyze/status/{job_id}
+    to poll for results.
+    """
+    job_id = f"job_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
+    job_store = get_job_store()
+    job_store.create(job_id, request.repository_url)
+    
+    def run_analysis():
+        try:
+            job_store.set_running(job_id)
+            result = engine.analyze(request)
+            
+            # Convert to dict for storage
+            findings_response = [
+                {
+                    "file_path": f.file_path,
+                    "class_name": f.class_name,
+                    "smell_type": f.smell_type,
+                    "severity": f.severity,
+                    "confidence": f.confidence,
+                    "rationale": f.rationale,
+                    "metrics": f.metrics,
+                    "refactoring_suggestions": f.refactoring_suggestions,
+                    "similar_examples": f.similar_examples,
+                    "llm_provider": f.llm_provider
+                } for f in result.findings
+            ]
+            
+            result_dict = {
+                "analysis_id": result.analysis_id,
+                "repository_url": result.repository_url,
+                "repository_name": result.repository_name,
+                "repository_path": result.repository_path,
+                "total_java_files": result.total_java_files,
+                "analyzed_classes": result.analyzed_classes,
+                "findings": findings_response,
+                "summary": result.summary,
+                "json_report_path": None,
+                "pdf_report_path": None,
+                "created_at": result.analysis_id,
+            }
+            
+            job_store.set_completed(job_id, result_dict)
+        except Exception as exc:
+            job_store.set_failed(job_id, str(exc))
+    
+    # Start background thread
+    thread = threading.Thread(target=run_analysis, daemon=True)
+    thread.start()
+    
+    return AsyncJobResponse(
+        job_id=job_id,
+        status="pending",
+        message="Analysis job submitted. Use the job_id to poll for status."
+    )
+
+
+@router.get("/analyze/status/{job_id}", response_model=JobStatusResponse)
+def get_analysis_status(
+    job_id: str,
+    user_id: str = Depends(get_user_id),
+) -> JobStatusResponse:
+    """Poll for the status of an async analysis job.
+    
+    Returns the current status and, when completed, the full analysis result.
+    """
+    job_store = get_job_store()
+    job = job_store.get(job_id)
+    
+    if not job:
+        raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
+    
+    response_data: dict = {
+        "job_id": job_id,
+        "status": job.status.value,
+        "repository_url": job.repository_url,
+        "error": job.error,
+        "result": None,
+    }
+    
+    if job.status == JobStatus.COMPLETED and job.result:
+        response_data["result"] = job.result
+    
+    return JobStatusResponse(**response_data)

@@ -101,6 +101,39 @@ class ApiClient {
   }
 
   /**
+   * Submit analysis job asynchronously (returns job_id immediately)
+   * Use getAnalysisStatus() to poll for completion
+   */
+  async submitAsyncAnalysis(request: AnalyzeRepositoryRequest): Promise<{ job_id: string; status: string; message: string }> {
+    try {
+      const response = await this.client.post<{ job_id: string; status: string; message: string }>('/api/analyze/async', request);
+      return response.data;
+    } catch (error) {
+      console.error('Async analysis submission failed:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Poll the status of an async analysis job
+   */
+  async getAnalysisStatus(jobId: string): Promise<{
+    job_id: string;
+    status: 'pending' | 'running' | 'completed' | 'failed';
+    repository_url: string;
+    error: string | null;
+    result: AnalysisResponse | null;
+  }> {
+    try {
+      const response = await this.client.get(`/api/analyze/status/${jobId}`);
+      return response.data;
+    } catch (error) {
+      console.error('Failed to get analysis status:', error);
+      throw error;
+    }
+  }
+
+  /**
    * Get report download links for an analysis
    */
   async getReportLinks(analysisId: string): Promise<ReportLinks> {
