@@ -30,6 +30,8 @@ class GeminiLLMService(BaseLLMService):
             f"Analyze the current Java source code, commit statistics, commit messages, code churn, lines added, lines deleted, "
             f"developer activity, git diff summary, and retrieved examples. "
             f"Use the commit history as supporting evidence, explain the smell, suggest refactoring, and provide a confidence score. "
+            f"Make the refactoring suggestions specific to this file and class; do not reuse the same generic suggestions for every file. "
+            f"Ground the suggestions in the actual source structure, metrics, and evidence from the repository. "
             f"Source code: {request.source_code or ''}. "
             f"Metrics: {request.metrics}. "
             f"Commit statistics: {commit_metadata}. "

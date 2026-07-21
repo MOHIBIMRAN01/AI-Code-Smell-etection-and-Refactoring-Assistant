@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -44,6 +44,45 @@ def _truncate(text: str, max_chars: int = 300, suffix: str = "…") -> str:
     if len(text) <= max_chars:
         return text
     return text[:max_chars].rstrip() + suffix
+
+
+def _format_suggestion_lines(suggestions: list[str], *, for_pdf: bool = False) -> str:
+    """Format suggestion text for HTML/PDF table cells."""
+    cleaned = [suggestion.strip() for suggestion in suggestions if suggestion and suggestion.strip()]
+    if not cleaned:
+        return "Not available"
+
+    formatted_suggestions = [
+        html.escape(_soft_wrap(_truncate(suggestion, max_chars=240), for_pdf=for_pdf))
+        for suggestion in cleaned
+    ]
+    return "<br/>".join(formatted_suggestions)
+
+
+def _table_header(text: str, style: ParagraphStyle) -> Paragraph:
+    return Paragraph(html.escape(text), style)
+
+
+def _table_cell(text: str, style: ParagraphStyle, *, max_chars: int | None = None, for_pdf: bool = False) -> Paragraph:
+    value = _soft_wrap(text, for_pdf=for_pdf)
+    if max_chars is not None:
+        value = _truncate(value, max_chars=max_chars)
+    return Paragraph(html.escape(value), style)
+
+
+def _display_path(file_path: str, repository_path: str | None) -> str:
+    """Return a repository-relative path when possible, otherwise the original path."""
+
+    path = Path(file_path)
+    if not repository_path:
+        return path.as_posix()
+
+    try:
+        repository_root = Path(repository_path)
+        relative_path = path.resolve(strict=False).relative_to(repository_root.resolve(strict=False))
+        return relative_path.as_posix()
+    except Exception:
+        return path.as_posix()
 
 
 class ReportGenerator:
@@ -166,13 +205,13 @@ class ReportGenerator:
     def _build_pdf(self, pdf_path: Path, result: AnalysisResult) -> None:
         styles = getSampleStyleSheet()
         title_style = styles["Title"]
-        heading_style = ParagraphStyle(name="Heading2", parent=styles["Heading2"], textColor=colors.HexColor("#0f172a"), spaceBefore=8, spaceAfter=6)
+        heading_style = ParagraphStyle(name="Heading2", parent=styles["Heading2"], textColor=colors.white, spaceBefore=8, spaceAfter=6)
         body_style = ParagraphStyle(name="Body", parent=styles["BodyText"], leading=12, spaceAfter=6)
         meta_style = ParagraphStyle(name="Meta", parent=styles["BodyText"], leading=10, textColor=colors.HexColor("#475569"), spaceAfter=4)
 
         document = SimpleDocTemplate(
             str(pdf_path),
-            pagesize=A4,
+            pagesize=landscape(A4),
             leftMargin=18 * mm,
             rightMargin=18 * mm,
             topMargin=16 * mm,
@@ -191,7 +230,7 @@ class ReportGenerator:
         story.append(Paragraph(f"Commit frequency: {history_summary['commit_frequency']:.2f}/day", body_style))
         story.append(Spacer(1, 4))
         cell_style = ParagraphStyle(name="TableCell", parent=body_style, fontSize=8, leading=10, wordWrap="CJK")
-        header_cell_style = ParagraphStyle(name="TableHeaderCell", parent=body_style, fontSize=8, leading=10, wordWrap="CJK")
+        header_cell_style = ParagraphStyle(name="TableHeaderCell", parent=body_style, fontSize=8, leading=10, wordWrap="CJK", textColor=colors.white)
         history_rows = [
             [Paragraph(html.escape("Metric"), header_cell_style), Paragraph(html.escape("Value"), header_cell_style)],
             [Paragraph(html.escape("Total commits"), cell_style), Paragraph(html.escape(_soft_wrap(str(history_summary["total_commits"]), for_pdf=True)), cell_style)],
@@ -228,20 +267,30 @@ class ReportGenerator:
             return
 
         story.append(Paragraph("Findings", heading_style))
-        data = [["File", "Class", "Smell", "Severity", "Confidence"]]
+        data = [[
+            _table_header("File", header_cell_style),
+            _table_header("Class", header_cell_style),
+            _table_header("Smell", header_cell_style),
+            _table_header("Severity", header_cell_style),
+            _table_header("Confidence", header_cell_style),
+            _table_header("Refactoring Suggestions", header_cell_style),
+        ]]
+        suggestion_style = ParagraphStyle(name="SuggestionCell", parent=meta_style, fontSize=7, leading=9, wordWrap="CJK")
         for finding in result.findings:
+            display_file_path = _display_path(finding.file_path, result.repository_path)
             data.append([
-                Paragraph(html.escape(_soft_wrap(str(finding.file_path), for_pdf=True)), meta_style),
-                Paragraph(html.escape(_soft_wrap(str(finding.class_name), for_pdf=True)), meta_style),
-                Paragraph(html.escape(_soft_wrap(str(finding.smell_type), for_pdf=True)), meta_style),
-                Paragraph(html.escape(_soft_wrap(str(finding.severity), for_pdf=True)), meta_style),
-                Paragraph(html.escape(_soft_wrap(f"{finding.confidence:.2f}", for_pdf=True)), meta_style),
+                _table_cell(display_file_path, meta_style, max_chars=120, for_pdf=True),
+                _table_cell(str(finding.class_name), meta_style, max_chars=40, for_pdf=True),
+                _table_cell(str(finding.smell_type), meta_style, max_chars=40, for_pdf=True),
+                _table_cell(str(finding.severity), meta_style, max_chars=20, for_pdf=True),
+                _table_cell(f"{finding.confidence:.2f}", meta_style, max_chars=10, for_pdf=True),
+                Paragraph(_format_suggestion_lines(finding.refactoring_suggestions, for_pdf=True), suggestion_style),
             ])
 
         table = Table(
             data,
             repeatRows=1,
-            colWidths=[70 * mm, 30 * mm, 30 * mm, 20 * mm, 20 * mm],
+            colWidths=[66 * mm, 30 * mm, 28 * mm, 22 * mm, 22 * mm, 80 * mm],
             splitByRow=1,
         )
         table.setStyle(
@@ -249,9 +298,13 @@ class ReportGenerator:
                 [
                     ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#111827")),
                     ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                    ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+                    ("ALIGN", (3, 1), (4, -1), "CENTER"),
+                    ("ALIGN", (0, 0), (-1, 0), "CENTER"),
                     ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#64748b")),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("FONTSIZE", (0, 0), (-1, -1), 8),
+                    ("LEADING", (0, 0), (-1, -1), 10),
                     ("BACKGROUND", (0, 1), (-1, -1), colors.HexColor("#f8fafc")),
                 ]
             )
@@ -262,7 +315,7 @@ class ReportGenerator:
     def _build_html(self, html_path: Path, result: AnalysisResult) -> None:
         history_summary = self._extract_commit_history_summary(result)
         findings_rows = "".join(
-            f"<tr><td>{html.escape(_soft_wrap(str(finding.file_path)))}</td><td>{html.escape(_soft_wrap(str(finding.class_name)))}</td><td>{html.escape(_soft_wrap(str(finding.smell_type)))}</td><td>{html.escape(_soft_wrap(str(finding.severity)))}</td><td>{html.escape(_soft_wrap(f'{finding.confidence:.2f}'))}</td></tr>"
+            f"<tr><td>{html.escape(_soft_wrap(_display_path(finding.file_path, result.repository_path)))}</td><td>{html.escape(_soft_wrap(str(finding.class_name)))}</td><td>{html.escape(_soft_wrap(str(finding.smell_type)))}</td><td>{html.escape(_soft_wrap(str(finding.severity)))}</td><td>{html.escape(_soft_wrap(f'{finding.confidence:.2f}'))}</td><td>{_format_suggestion_lines(finding.refactoring_suggestions)}</td></tr>"
             for finding in result.findings
         )
         history_rows = "".join(
@@ -289,11 +342,11 @@ class ReportGenerator:
     :root {{ color-scheme: dark; }}
     body {{ font-family: Arial, sans-serif; margin: 0; padding: 24px; background: #020617; color: #e2e8f0; }}
     .card {{ background: #111827; border: 1px solid #334155; border-radius: 12px; padding: 20px; margin-bottom: 20px; box-shadow: 0 10px 25px rgba(15, 23, 42, 0.3); }}
-    h1, h2 {{ color: #f8fafc; }}
+        h1, h2 {{ color: #f8fafc !important; }}
     p {{ line-height: 1.6; }}
     table {{ width: 100%; border-collapse: collapse; margin-top: 8px; }}
     th, td {{ border: 1px solid #334155; padding: 10px; text-align: left; }}
-    th {{ background: #0f172a; color: #f8fafc; }}
+        th {{ background: #0f172a; color: #f8fafc !important; }}
     tr:nth-child(even) td {{ background: #0f172a; }}
     .meta {{ color: #94a3b8; }}
   </style>
@@ -319,10 +372,10 @@ class ReportGenerator:
     <h2>Findings</h2>
     <table>
       <thead>
-        <tr><th>File</th><th>Class</th><th>Smell</th><th>Severity</th><th>Confidence</th></tr>
+                <tr><th>File</th><th>Class</th><th>Smell</th><th>Severity</th><th>Confidence</th><th>Refactoring Suggestions</th></tr>
       </thead>
       <tbody>
-        {findings_rows or '<tr><td colspan="5">No smell findings were detected in this repository.</td></tr>'}
+                {findings_rows or '<tr><td colspan="6">No smell findings were detected in this repository.</td></tr>'}
       </tbody>
     </table>
   </div>

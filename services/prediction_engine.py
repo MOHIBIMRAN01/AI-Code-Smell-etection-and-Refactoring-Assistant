@@ -67,15 +67,24 @@ class PredictionEngine:
             findings: list[Finding] = []
             analyzed_classes = 0
             max_findings = self.settings.max_findings_per_repository
+            commit_history_cache: dict[str, list] = {}
 
             for file_path in java_files[: self.settings.max_files_to_analyze]:
                 relative_file_path = file_path.relative_to(repository_path).as_posix()
-                commit_history = self._analyze_commit_history(repository_path, relative_file_path)
                 parsed_file = self.parser.parse_file(file_path)
+                commit_history: list = []
                 for class_metrics in parsed_file.classes:
                     analyzed_classes += 1
                     evaluated_class = self.metrics_extractor.evaluate_class(class_metrics)
                     smell_candidates = self._select_smells(evaluated_class)
+                    if not smell_candidates:
+                        continue
+                    if relative_file_path not in commit_history_cache:
+                        commit_history_cache[relative_file_path] = self._analyze_commit_history(
+                            repository_path,
+                            relative_file_path,
+                        )
+                    commit_history = commit_history_cache[relative_file_path]
                     for smell_candidate in smell_candidates:
                         if len(findings) >= max_findings:
                             break
@@ -84,6 +93,7 @@ class PredictionEngine:
                                 smell_candidate=smell_candidate,
                                 class_metrics=evaluated_class,
                                 parsed_file_path=parsed_file.file_path,
+                                relative_file_path=relative_file_path,
                                 source_code=parsed_file.source_code,
                                 commit_history=commit_history,
                             )
@@ -130,25 +140,14 @@ class PredictionEngine:
         return sorted(repository_path.rglob("*.java"))
 
     def _select_smells(self, class_metrics) -> list[SmellCandidate]:
-        # Prefer detailed candidates computed by the MetricsExtractor
-        smell_candidates = self.metrics_extractor.get_smell_candidates(class_metrics)
-
-        if not smell_candidates:
-            smell_candidates = [
-                SmellCandidate(
-                    smell_type="Potential Structural Smell",
-                    severity="low",
-                    confidence=0.5,
-                    rationale="The class does not cross the main heuristic thresholds, but the retrieval context still warrants review.",
-                )
-            ]
-        return smell_candidates[: self.settings.max_findings_per_file]
+        return self.metrics_extractor.get_smell_candidates(class_metrics)[: self.settings.max_findings_per_file]
 
     def _build_finding(
         self,
         smell_candidate: SmellCandidate,
         class_metrics,
         parsed_file_path: str,
+        relative_file_path: str,
         source_code: str | None = None,
         commit_history=None,
     ) -> Finding:
@@ -177,7 +176,7 @@ class PredictionEngine:
         llm_request = LLMRequest(
             smell_type=smell_candidate.smell_type,
             severity=smell_candidate.severity,
-            file_path=parsed_file_path,
+            file_path=relative_file_path,
             class_name=class_metrics.name,
             source_code=source_code,
             metrics={
