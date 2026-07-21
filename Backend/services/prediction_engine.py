@@ -1,4 +1,4 @@
-c"""Repository analysis orchestration pipeline."""
+"""Repository analysis orchestration pipeline."""
 
 from __future__ import annotations
 
