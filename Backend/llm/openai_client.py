@@ -68,6 +68,8 @@ class OpenAILLMService(BaseLLMService):
         return (
             f"You are a software engineering assistant analyzing Java code for code smells.\n"
             f"Task: detect code smells, use commit history as supporting evidence, explain the smell, suggest refactoring, and provide a confidence score.\n"
+            f"Write refactoring suggestions that are specific to this file and class; avoid repeating the same generic advice across different files.\n"
+            f"Ground each suggestion in the actual source code, metrics, and class structure when possible.\n"
             f"Smell type: {request.smell_type}\n"
             f"Class: {request.class_name}\n"
             f"File: {request.file_path}\n"
