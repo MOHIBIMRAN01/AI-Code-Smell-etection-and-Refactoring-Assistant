@@ -1,4 +1,4 @@
-"""Repository analysis orchestration pipeline."""
+c"""Repository analysis orchestration pipeline."""
 
 from __future__ import annotations
 
@@ -105,6 +105,7 @@ class PredictionEngine:
                             smell_candidate,
                             evaluated_class,
                             parsed_file.file_path,
+                            relative_file_path,
                             parsed_file.source_code,
                             commit_history,
                         ))
@@ -122,8 +123,9 @@ class PredictionEngine:
                         smell_candidate=task[0],
                         class_metrics=task[1],
                         parsed_file_path=task[2],
-                        source_code=task[3],
-                        commit_history=task[4],
+                        relative_file_path=task[3],
+                        source_code=task[4],
+                        commit_history=task[5],
                     ): i for i, task in enumerate(finding_tasks)
                 }
                 
