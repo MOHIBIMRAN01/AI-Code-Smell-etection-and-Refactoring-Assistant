@@ -38,13 +38,21 @@ def create_app() -> FastAPI:
             "http://localhost:3000",
             "http://127.0.0.1:3000",
         ])
-    else:
-        # Production: use FRONTEND_URL from env vars
-        # CORS does NOT support wildcards, so we need the exact URL
-        if settings.frontend_url and "localhost" not in settings.frontend_url:
-            allowed_origins.append(settings.frontend_url)
     
-    # Fallback if no origins configured (allow all in production to prevent blocking)
+    # Add production frontend URLs
+    if settings.frontend_url and "localhost" not in settings.frontend_url:
+        allowed_origins.append(settings.frontend_url)
+    
+    # Also allow vercel.app domains (frontend may be on vercel)
+    allowed_origins.extend([
+        "https://ai-code-smell-etection-and-refactor.vercel.app",
+        "https://ai-code-smell-etection-and-refactoring-assistant-hvjlskq0j.vercel.app",
+    ])
+    
+    # Remove duplicates
+    allowed_origins = list(set(allowed_origins))
+    
+    # Fallback: if still empty, allow all (less secure but prevents blocking)
     if not allowed_origins:
         allowed_origins = ["*"]
     
