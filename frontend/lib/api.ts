@@ -20,7 +20,7 @@ class ApiClient {
 
     this.client = axios.create({
       baseURL: this.backendUrl,
-      timeout: parseInt(process.env.NEXT_PUBLIC_REQUEST_TIMEOUT || '600000'),
+      timeout: parseInt(process.env.NEXT_PUBLIC_REQUEST_TIMEOUT || '1200000'), // 20 minutes
       headers: {
         'Content-Type': 'application/json',
       },

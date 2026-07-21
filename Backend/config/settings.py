@@ -35,12 +35,12 @@ class Settings(BaseSettings):
     model_name: str = "gemini-1.5-flash"
     embedding_provider: str = "local"
     embedding_model: str = "local"
-    default_retrieval_k: int = 5
-    max_files_to_analyze: int = 70  # Balanced: enough coverage but faster (was 100)
-    max_findings_per_file: int = 5  # Reduced from 10 to speed up analysis
-    max_findings_per_repository: int = 30  # Reduced from 50 to focus on critical issues
-    max_history_commits_per_file: int = 5  # Reduced from 10 to speed up git analysis
-    max_parallel_llm_calls: int = 3  # Run 3 LLM calls in parallel (saves 5-7 min)
+    default_retrieval_k: int = 3  # Reduced for speed
+    max_files_to_analyze: int = 30  # Significantly reduced for free tier (was 70)
+    max_findings_per_file: int = 3  # Reduced from 5 to speed up analysis
+    max_findings_per_repository: int = 15  # Reduced from 30 to focus on critical issues
+    max_history_commits_per_file: int = 3  # Reduced from 5 to speed up git analysis
+    max_parallel_llm_calls: int = 5  # Increased parallel calls for faster processing
 
     openai_api_key: str | None = None
     openai_base_url: str | None = None
