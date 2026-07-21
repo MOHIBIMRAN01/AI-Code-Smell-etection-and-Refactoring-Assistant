@@ -30,7 +30,6 @@ def create_app() -> FastAPI:
     app = FastAPI(title=settings.app_name, version="1.0.0", lifespan=lifespan)
 
     # Add CORS middleware to support frontend API connections
-    # Only allow the specific frontend URL from environment variable
     allowed_origins = []
     
     # Always add localhost for local development
@@ -39,10 +38,15 @@ def create_app() -> FastAPI:
             "http://localhost:3000",
             "http://127.0.0.1:3000",
         ])
+    else:
+        # Production: use FRONTEND_URL from env vars
+        # CORS does NOT support wildcards, so we need the exact URL
+        if settings.frontend_url and "localhost" not in settings.frontend_url:
+            allowed_origins.append(settings.frontend_url)
     
-    # Add the configured frontend URL (FRONTEND_URL env var)
-    if settings.frontend_url:
-        allowed_origins.append(settings.frontend_url)
+    # Fallback if no origins configured (allow all in production to prevent blocking)
+    if not allowed_origins:
+        allowed_origins = ["*"]
     
     app.add_middleware(
         CORSMiddleware,
@@ -55,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(router)
 
     @app.get("/")
+    @app.head("/")
     def root() -> dict[str, str]:
         return {"message": "Welcome to CodeSmell AI Backend REST API"}
 
