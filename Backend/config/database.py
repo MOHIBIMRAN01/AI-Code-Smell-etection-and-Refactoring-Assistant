@@ -9,8 +9,13 @@ from sqlalchemy.orm import declarative_base, sessionmaker, Session
 
 LOGGER = logging.getLogger(__name__)
 
-# Fetch from environment. We default to sqlite if no DB url is provided (useful for offline testing)
+# Force SQLite if DATABASE_URL tries to connect to Neon (quota exceeded)
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./app.db")
+
+# If Neon connection string detected, use SQLite instead
+if "neon.tech" in DATABASE_URL or "psycopg2" in DATABASE_URL:
+    LOGGER.warning("Neon database detected, switching to SQLite")
+    DATABASE_URL = "sqlite:///./app.db"
 
 # For SQLite, we need to disable same_thread check
 connect_args = {}
