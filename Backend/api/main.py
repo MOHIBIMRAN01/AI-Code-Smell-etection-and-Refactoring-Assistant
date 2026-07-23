@@ -16,8 +16,15 @@ def create_app() -> FastAPI:
     configure_logging(settings.logs_dir)
 
     # Initialize database tables and apply lightweight schema migrations.
-    Base.metadata.create_all(bind=engine)
-    migrate_database()
+    try:
+        Base.metadata.create_all(bind=engine)
+        migrate_database()
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Database initialization failed: {e}")
+        logger.info("Ensure DATABASE_URL environment variable is set correctly")
+        raise
 
     cleanup_service = RepoCloneCleanupService(settings)
 
