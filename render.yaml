@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: code-smell-analyzer
+    runtime: python
+    pythonVersion: 3.11
+    buildCommand: pip install -r Backend/requirements.txt
+    startCommand: cd Backend && uvicorn api.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: DATABASE_URL
+        value: sqlite:////tmp/app.db
+      - key: ENVIRONMENT
+        value: production
+      - key: MODEL_PROVIDER
+        value: gemini
+      - key: BACKEND_PORT
+        value: 8000
+      - key: FRONTEND_URL
+        value: https://ai-code-smell-etection-and-refactor.vercel.app
