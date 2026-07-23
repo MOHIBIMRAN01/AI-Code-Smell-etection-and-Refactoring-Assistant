@@ -43,17 +43,28 @@ def migrate_database() -> None:
         return
 
     existing = {column["name"] for column in inspector.get_columns("analyses")}
-    blob_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
+    
+    # Determine column types based on database dialect
+    if engine.dialect.name == "postgresql":
+        blob_type = "BYTEA"
+        timestamp_type = "TIMESTAMP"
+    else:  # SQLite or other databases
+        blob_type = "BLOB"
+        timestamp_type = "DATETIME"
+    
     additions = {
         "repo_archive_blob": blob_type,
         "json_report_blob": blob_type,
-        "repo_expires_at": "TIMESTAMP" if engine.dialect.name == "postgresql" else "DATETIME",
+        "repo_expires_at": timestamp_type,
     }
 
     with engine.begin() as connection:
         for column_name, column_type in additions.items():
             if column_name not in existing:
-                connection.execute(
-                    text(f"ALTER TABLE analyses ADD COLUMN {column_name} {column_type}")
-                )
-                LOGGER.info("Added analyses.%s column", column_name)
+                try:
+                    connection.execute(
+                        text(f"ALTER TABLE analyses ADD COLUMN {column_name} {column_type}")
+                    )
+                    LOGGER.info("Added analyses.%s column", column_name)
+                except Exception as e:
+                    LOGGER.warning("Could not add column %s: %s", column_name, str(e))

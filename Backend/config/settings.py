@@ -36,11 +36,11 @@ class Settings(BaseSettings):
     embedding_provider: str = "local"
     embedding_model: str = "local"
     default_retrieval_k: int = 3  # Reduced for speed
-    max_files_to_analyze: int = 30  # Significantly reduced for free tier (was 70)
+    max_files_to_analyze: int = 20  # Mini project - reduced further for SQLite
     max_findings_per_file: int = 3  # Reduced from 5 to speed up analysis
-    max_findings_per_repository: int = 15  # Reduced from 30 to focus on critical issues
+    max_findings_per_repository: int = 10  # Reduced for mini project
     max_history_commits_per_file: int = 3  # Reduced from 5 to speed up git analysis
-    max_parallel_llm_calls: int = 5  # Increased parallel calls for faster processing
+    max_parallel_llm_calls: int = 3  # Reduced for SQLite performance
 
     openai_api_key: str | None = None
     openai_base_url: str | None = None
